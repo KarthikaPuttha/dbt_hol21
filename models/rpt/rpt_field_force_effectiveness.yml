@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: rpt_field_force_effectiveness
+    description: >
+      Field force effectiveness report measuring rep call productivity and sales conversion.
+      Grain: one row per rep + territory + month.
+      Key KPIs: call_completion_rate, revenue_per_call, revenue_per_completed_call, effectiveness_rating.
+    columns:
+      - name: effectiveness_sk
+        description: "Surrogate key (rep + territory + year_month)"
+        tests: [not_null, unique]
+      - name: rep_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_sales_rep')
+              field: rep_id
+      - name: territory_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_territory')
+              field: territory_id
+      - name: total_calls
+        tests: [not_null]
+      - name: call_completion_rate
+        description: "Completed calls / total calls * 100"
+      - name: revenue_per_completed_call
+        description: "Net revenue / completed calls"
+      - name: effectiveness_rating
+        description: "Performance band based on completion rate and revenue per call"
+        tests:
+          - accepted_values:
+              values: ['Star Performer', 'Effective', 'Developing', 'Needs Improvement']

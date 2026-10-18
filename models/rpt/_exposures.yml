@@ -1,0 +1,49 @@
+version: 2
+
+exposures:
+
+  - name: sales_performance_dashboard
+    type: dashboard
+    description: >
+      Executive dashboard showing sales vs quota attainment by rep, product,
+      and territory. Updated daily. Primary consumer of rpt_sales_performance.
+    owner:
+      name: Pharma Analytics Team
+      email: analytics@company.com
+    depends_on:
+      - ref('rpt_sales_performance')
+      - ref('rpt_product_portfolio')
+
+  - name: field_force_effectiveness_report
+    type: dashboard
+    description: >
+      Operational report for field managers tracking call activity,
+      HCP reach, and sample distribution effectiveness.
+    owner:
+      name: Pharma Analytics Team
+      email: analytics@company.com
+    depends_on:
+      - ref('rpt_field_force_effectiveness')
+      - ref('rpt_sample_compliance')
+
+  - name: prescriber_360_app
+    type: application
+    description: >
+      Prescriber 360 lookup application used by sales reps to view
+      HCP prescribing history, call activity, and engagement scores.
+    owner:
+      name: Pharma Analytics Team
+      email: analytics@company.com
+    depends_on:
+      - ref('rpt_prescriber_360')
+
+  - name: therapeutic_area_scorecard
+    type: analysis
+    description: >
+      Monthly scorecard comparing therapeutic area performance against
+      industry benchmarks. Distributed to leadership via email.
+    owner:
+      name: Pharma Analytics Team
+      email: analytics@company.com
+    depends_on:
+      - ref('rpt_therapeutic_area_scorecard')

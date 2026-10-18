@@ -1,0 +1,63 @@
+version: 2
+
+snapshots:
+
+  - name: snap_dim_hcp
+    description: >
+      SCD Type 2 snapshot of dim_hcp. Tracks changes to HCP attributes
+      including tier, status, specialty, territory assignment, and
+      prescribing potential over time.
+    columns:
+      - name: hcp_id
+        description: "Natural key — one row per HCP per version"
+        tests: [not_null]
+      - name: dbt_valid_from
+        tests: [not_null]
+
+  - name: snap_dim_sales_rep
+    description: >
+      SCD Type 2 snapshot of dim_sales_rep. Tracks changes to rep
+      attributes including level, status, territory assignment, manager,
+      and tenure band over time.
+    columns:
+      - name: rep_id
+        description: "Natural key — one row per rep per version"
+        tests: [not_null]
+      - name: dbt_valid_from
+        tests: [not_null]
+
+  - name: snap_dim_territory
+    description: >
+      SCD Type 2 snapshot of dim_territory. Tracks changes to territory
+      boundaries, region assignment, and entity counts (HCPs, reps)
+      over time.
+    columns:
+      - name: territory_id
+        description: "Natural key — one row per territory per version"
+        tests: [not_null]
+      - name: dbt_valid_from
+        tests: [not_null]
+
+  - name: snap_dim_product
+    description: >
+      SCD Type 2 snapshot of dim_product. Tracks changes to product
+      attributes including price, status, lifecycle stage, and patent
+      status over time.
+    columns:
+      - name: product_id
+        description: "Natural key — one row per product per version"
+        tests: [not_null]
+      - name: dbt_valid_from
+        tests: [not_null]
+
+  - name: snap_fct_sales_target
+    description: >
+      SCD Type 2 snapshot of fct_sales_target. Tracks revisions to
+      sales quotas (amount and units) for rep + product + month
+      combinations over time.
+    columns:
+      - name: target_id
+        description: "Natural key — one row per target per version"
+        tests: [not_null]
+      - name: dbt_valid_from
+        tests: [not_null]

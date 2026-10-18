@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: rpt_product_portfolio
+    description: >
+      Product portfolio performance report with revenue, prescriptions, and market share.
+      Grain: one row per product + territory + month.
+      Key KPIs: territory_revenue_share_pct, nrx_share_pct, revenue_per_unit.
+    columns:
+      - name: portfolio_sk
+        description: "Surrogate key (product + territory + year_month)"
+        tests: [not_null, unique]
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_id
+      - name: territory_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_territory')
+              field: territory_id
+      - name: net_revenue
+        tests: [not_null]
+      - name: territory_revenue_share_pct
+        description: "Product's revenue as % of total territory revenue for the month"
+      - name: nrx_share_pct
+        description: "New Rx as % of total Rx"

@@ -1,0 +1,93 @@
+version: 2
+
+seeds:
+
+  # ----------------------------------------------------------------
+  # TEACHING NOTE: Seeds are small CSV files in your dbt project.
+  # They are version-controlled reference data loaded via `dbt seed`.
+  # the exact same syntax used for models.
+  # ----------------------------------------------------------------
+
+  - name: therapeutic_area_benchmarks
+    description: >
+      Industry benchmark data per therapeutic area.
+      This is a great example of seed data — it comes from analyst reports,
+      NOT from a source system, so it lives in the project as a CSV.
+      Students: notice how this seed is referenced in rpt_therapeutic_area_scorecard
+      using therapeutic_area_benchmarks.
+    columns:
+      - name: therapeutic_area
+        description: Therapeutic classification — must match dim_product.therapeutic_area for joins
+        tests:
+          - not_null
+          - unique
+      - name: market_size_billions
+        description: Total addressable market in USD billions (from industry reports)
+      - name: yoy_growth_pct
+        description: Year-over-year market growth percentage
+      - name: avg_rx_per_hcp
+        description: Industry average prescriptions per HCP per year
+      - name: avg_deal_size
+        description: Average transaction size in USD
+      - name: competitive_intensity
+        description: Qualitative rating — Low, Medium, High, Very High
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Low', 'Medium', 'High', 'Very High']
+      - name: notes
+        description: Brief context about the therapeutic area
+
+  - name: attainment_band_config
+    description: >
+      Configurable thresholds for quota attainment classification.
+      TEACHING POINT: Instead of hardcoding CASE WHEN logic in SQL,
+      we store the bands in a seed. This means business users can
+      change thresholds by editing a CSV — no SQL changes needed.
+    columns:
+      - name: band_id
+        description: Unique identifier for the band
+        tests:
+          - not_null
+          - unique
+      - name: band_name
+        description: Display label (e.g., Elite Performer, At Risk)
+      - name: min_pct
+        description: Minimum attainment percentage (inclusive)
+        tests:
+          - not_null
+      - name: max_pct
+        description: Maximum attainment percentage (inclusive)
+        tests:
+          - not_null
+      - name: band_color
+        description: Suggested color for dashboards
+      - name: bonus_multiplier
+        description: Multiplier applied to base bonus (0.00 = no bonus, 2.00 = double)
+      - name: sort_order
+        description: Display sort order (1 = best)
+
+  - name: rep_level_hierarchy
+    description: >
+      Sales rep level definitions with seniority metadata.
+      TEACHING POINT: This seed enriches dim_sales_rep with HR reference
+      data (bonus rates, team management flags) that doesn't exist
+      in the source system.
+    columns:
+      - name: rep_level
+        description: Rep level name — must match dim_sales_rep.rep_level for joins
+        tests:
+          - not_null
+          - unique
+      - name: seniority_rank
+        description: Numeric rank (1 = junior, 4 = senior)
+      - name: min_years_experience
+        description: Minimum years of experience for this level
+      - name: base_bonus_pct
+        description: Base bonus percentage of salary
+      - name: can_manage_team
+        description: Whether this level can manage other reps
+      - name: max_territories
+        description: Maximum territories this level can cover
+      - name: title_abbreviation
+        description: Short code for the level

@@ -1,0 +1,5 @@
+rep_level,seniority_rank,min_years_experience,base_bonus_pct,can_manage_team,max_territories,title_abbreviation
+Sales Rep I,1,0,5,false,1,SR1
+Sales Rep II,2,2,8,false,2,SR2
+Senior Sales Rep,3,5,12,false,3,SSR
+Regional Manager,4,8,18,true,10,RM

@@ -1,0 +1,38 @@
+name: 'dbt_hol21'
+version: '1.0.0'
+config-version: 2
+
+profile: 'dbt_hol21'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  dbt_hol21:
+    staging:
+      +materialized: view
+      +schema: stage
+      +tags: ["staging", "daily"]
+    core:
+      +materialized: table
+      +schema: core
+      +tags: ["core", "daily"]
+    reporting:
+      +materialized: table
+      +schema: rpt
+      +tags: ["reporting", "daily"]
+
+seeds:
+  dbt_hol21:
+    +schema: raw
+
+vars:
+  default_database: PHARMA_ANALYTICS

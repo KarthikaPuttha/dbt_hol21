@@ -1,0 +1,1 @@
+select * from PHARMA_ANALYTICS.RAW.RAW_REGION

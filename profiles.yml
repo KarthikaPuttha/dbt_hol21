@@ -1,0 +1,84 @@
+dbt_hol:
+  outputs:
+    dev:
+      account: WSWIIAQ-QS06907
+      database: retail_raw
+      password: Vectoretech@123
+      role: accountadmin
+      schema: pos
+      threads: 10
+      type: snowflake
+      user: saijune
+      warehouse: RETAIL_REPORTING_WH
+  target: dev
+dbt_hol21:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: FRMQSJN-ZD24271
+      database: PHARMA_ANALYTICS
+      role: accountadmin
+      schema: dev
+      warehouse: compute_wh
+      user: SAISEP
+      password: Vectoretech@123
+      threads: 6
+
+    prod:
+      type: snowflake
+      account: FRMQSJN-ZD24271
+      database: PHARMA_ANALYTICS
+      role: accountadmin
+      schema: prod
+      warehouse: compute_wh
+      user: SAISEP
+      password: Vectoretech@123
+      threads: 6
+
+    staging:
+      type: snowflake
+      account: FRMQSJN-ZD24271
+      database: PHARMA_ANALYTICS
+      role: accountadmin
+      schema: staging
+      warehouse: compute_wh
+      user: SAISEP
+      password: Vectoretech@123
+      threads: 6
+dbt_my_first_project:
+  outputs:
+    dev:
+      account: WSWIIAQ-QS06907
+      database: retail_dw
+      password: Vectoretech@123
+      role: accountadmin
+      schema: public
+      threads: 6
+      type: snowflake
+      user: saijune
+      warehouse: compute_wh
+    prod:
+      account: WSWIIAQ-QS06907
+      database: ecommerce
+      password: Vectoretech@123
+      role: accountadmin
+      schema: raw
+      threads: 6
+      type: snowflake
+      user: saijune
+      warehouse: compute_wh
+  target: dev
+prepz_project:
+  outputs:
+    dev:
+      account: WSWIIAQ-QS06907
+      database: dbt_snowflake
+      password: Vectoretech@123
+      role: accountadmin
+      schema: public
+      threads: 6
+      type: snowflake
+      user: saijune
+      warehouse: compute_wh
+  target: dev

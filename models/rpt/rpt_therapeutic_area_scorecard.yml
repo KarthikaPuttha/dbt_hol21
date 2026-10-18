@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: rpt_therapeutic_area_scorecard
+    description: "Scorecard comparing sales performance by therapeutic area and rep level against industry benchmarks. Demonstrates three seed usage patterns: enrichment (therapeutic_area_benchmarks), config-driven logic (attainment_band_config), and reference data (rep_level_hierarchy). Grain: one row per therapeutic_area + rep_level."
+    columns:
+      - name: therapeutic_area
+        description: Therapeutic classification from dim_product
+        tests:
+          - not_null
+      - name: rep_level
+        description: Sales rep level from dim_sales_rep
+        tests:
+          - not_null
+      - name: total_transactions
+        description: Count of distinct sales transactions
+      - name: active_reps
+        description: Count of distinct reps with sales in this area
+      - name: unique_hcps_reached
+        description: Count of distinct HCPs sold to
+      - name: total_units_sold
+        description: Sum of units sold
+      - name: total_net_revenue
+        description: Total net revenue after discounts
+      - name: total_gross_revenue
+        description: Total gross revenue before discounts
+      - name: avg_deal_size
+        description: Average net amount per transaction
+      - name: avg_discount_pct
+        description: Average discount percentage
+      - name: market_size_billions
+        description: "FROM SEED: Industry total addressable market (USD billions)"
+      - name: industry_growth_pct
+        description: "FROM SEED: Industry year-over-year growth rate"
+      - name: industry_avg_deal_size
+        description: "FROM SEED: Industry average transaction size"
+      - name: competitive_intensity
+        description: "FROM SEED: Market competitive intensity rating"
+      - name: seniority_rank
+        description: "FROM SEED: Numeric seniority rank (1=junior, 4=senior)"
+      - name: base_bonus_pct
+        description: "FROM SEED: Base bonus percentage for this rep level"
+      - name: can_manage_team
+        description: "FROM SEED: Whether this rep level can manage others"
+      - name: deal_size_attainment_pct
+        description: "CALCULATED: Our avg deal size ÷ industry avg deal size × 100"
+      - name: performance_band
+        description: "FROM SEED: Attainment band name driven by attainment_band_config CSV"
+      - name: bonus_multiplier
+        description: "FROM SEED: Bonus multiplier from attainment band config"
+      - name: effective_bonus_pct
+        description: "CALCULATED: base_bonus_pct × bonus_multiplier"

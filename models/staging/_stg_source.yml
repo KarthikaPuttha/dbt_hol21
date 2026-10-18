@@ -1,0 +1,304 @@
+version: 2
+
+sources:
+  - name: raw
+    description: 
+      Raw ingestion layer — source data as-is from operational systems.
+      All columns are VARCHAR to mimic real-world flat file ingestion.
+      No transformations, no type casting, no business logic applied.
+    database: PHARMA_ANALYTICS
+    schema: RAW
+    tables:
+
+      # ----------------------------------------------------------------
+      # DIMENSION SOURCES
+      # ----------------------------------------------------------------
+
+      - name: raw_region
+        description: Geographic region master data from CRM. Grain = one row per region.
+        columns:
+          - name: region_id
+            description: Business key for region (e.g., R001)
+            tests:
+              - not_null
+              - unique
+          - name: region_name
+            description: Region display name (e.g., Northeast, Southwest)
+          - name: country
+            description: Country code/name (currently all USA)
+          - name: zone
+            description: High-level zone grouping — East, Central, or West
+
+      - name: raw_territory
+        description: Sales territory assignments from CRM. Grain = one row per territory.
+        columns:
+          - name: territory_id
+            description: Business key for territory (e.g., T001)
+            tests:
+              - not_null
+              - unique
+          - name: territory_name
+            description: Territory display name (e.g., Manhattan North)
+          - name: region_id
+            description: FK to raw_region.region_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'raw_region')
+                  field: region_id
+          - name: state
+            description: US state name
+          - name: city
+            description: Primary city in territory
+          - name: zip_code
+            description: Representative ZIP code
+
+      - name: raw_product
+        description: 
+          Drug product catalog from product master system.
+          Grain = one row per product SKU.
+          Covers 7 therapeutic areas with branded drugs.
+        columns:
+          - name: product_id
+            description: Business key for product (e.g., P001)
+            tests:
+              - not_null
+              - unique
+          - name: product_name
+            description: Generic name + strength (e.g., Atorvastatin 20mg)
+          - name: brand_name
+            description: Marketing brand name (e.g., LipiClear)
+          - name: therapeutic_area
+            description: Therapeutic classification (e.g., Cardiovascular, CNS/Psychiatry)
+          - name: product_category
+            description: Branded or Generic
+          - name: unit_price
+            description: List price per unit (VARCHAR — cast in staging)
+          - name: launch_date
+            description: Product launch date (VARCHAR — cast in staging)
+          - name: patent_expiry_date
+            description: Patent expiration date (VARCHAR — cast in staging)
+          - name: ndc_code
+            description: National Drug Code identifier
+          - name: status
+            description: Active or Discontinued
+
+      - name: raw_sales_rep
+        description: 
+          Sales representative master data from HR system.
+          Grain = one row per rep. Self-referencing hierarchy via manager_id.
+        columns:
+          - name: rep_id
+            description: Business key for sales rep (e.g., REP0001)
+            tests:
+              - not_null
+              - unique
+          - name: rep_name
+            description: Full name of sales representative
+          - name: email
+            description: Corporate email address
+          - name: phone
+            description: Contact phone number
+          - name: hire_date
+            description: Date hired (VARCHAR — cast in staging)
+          - name: territory_id
+            description: FK to raw_territory.territory_id
+          - name: manager_id
+            description: Self-referencing FK to raw_sales_rep.rep_id (NULL for managers)
+          - name: rep_level
+            description: Sales Rep I / Sales Rep II / Senior Sales Rep / Regional Manager
+          - name: status
+            description: Active or Inactive
+
+      - name: raw_hcp
+        description: 
+          Healthcare Professional (doctor) data from Veeva CRM.
+          Grain = one row per HCP.
+          HCP Tier (A-D) represents prescribing potential.
+        columns:
+          - name: hcp_id
+            description: Business key for HCP (e.g., HCP00001)
+            tests:
+              - not_null
+              - unique
+          - name: hcp_name
+            description: Doctor's name (e.g., Dr. Raj Patel)
+          - name: specialty
+            description: Medical specialty (e.g., Cardiology, Endocrinology)
+          - name: npi_number
+            description: National Provider Identifier (10-digit unique ID)
+          - name: hospital_name
+            description: Affiliated hospital or clinic
+          - name: territory_id
+            description: FK to raw_territory.territory_id
+          - name: tier
+            description: HCP value tier — A (highest) through D (lowest)
+          - name: decile
+            description: Prescribing volume decile (1-10)
+          - name: status
+            description: Active or Inactive
+
+      # ----------------------------------------------------------------
+      # FACT SOURCES
+      # ----------------------------------------------------------------
+
+      - name: raw_call_activity
+        description: 
+          Field force call/visit activity from Veeva CRM.
+          Grain = one row per call. ~500K rows over 2 years.
+        loaded_at_field: call_date::timestamp
+        freshness:
+          warn_after: {count: 3, period: day}
+          error_after: {count: 7, period: day}
+        columns:
+          - name: call_id
+            description: Surrogate key for the call event
+            tests:
+              - not_null
+              - unique
+          - name: rep_id
+            description: FK to raw_sales_rep.rep_id
+          - name: hcp_id
+            description: FK to raw_hcp.hcp_id
+          - name: call_date
+            description: Date of call/visit (VARCHAR — cast in staging)
+          - name: call_type
+            description: Face-to-Face, Virtual, Phone Call, Lunch & Learn, or Conference
+          - name: call_duration
+            description: Duration in minutes (VARCHAR — cast in staging)
+          - name: call_status
+            description: Completed, No Show, Rescheduled, or Cancelled
+          - name: products_discussed
+            description: Comma-separated product IDs discussed during call
+          - name: samples_dropped
+            description: Number of drug samples left with HCP (VARCHAR)
+          - name: next_call_date
+            description: Planned follow-up date
+          - name: territory_id
+            description: FK to raw_territory.territory_id
+
+      - name: raw_sales_txn
+        description: 
+          Sales transaction data from SAP SD module.
+          Grain = one row per transaction. ~750K rows over 2 years.
+        loaded_at_field: txn_date::timestamp
+        freshness:
+          warn_after: {count: 3, period: day}
+          error_after: {count: 7, period: day}
+        columns:
+          - name: txn_id
+            description: Surrogate key for the transaction
+            tests:
+              - not_null
+              - unique
+          - name: rep_id
+            description: FK to raw_sales_rep.rep_id
+          - name: product_id
+            description: FK to raw_product.product_id
+          - name: hcp_id
+            description: FK to raw_hcp.hcp_id
+          - name: txn_date
+            description: Transaction date (VARCHAR — cast in staging)
+          - name: quantity_sold
+            description: Units sold (VARCHAR — cast in staging)
+          - name: unit_price
+            description: Price per unit (VARCHAR — cast in staging)
+          - name: total_amount
+            description: Gross amount before discount (VARCHAR)
+          - name: discount_pct
+            description: Discount percentage applied (VARCHAR)
+          - name: channel
+            description: Direct Sales, Wholesale, Hospital, or Specialty Pharmacy
+          - name: territory_id
+            description: FK to raw_territory.territory_id
+
+      - name: raw_prescriptions
+        description: 
+          Prescription data from IQVIA/Symphony Health.
+          Grain = one row per prescription. ~600K rows over 2 years.
+          Rx data is the gold standard for measuring field force impact.
+        loaded_at_field: rx_date::timestamp
+        freshness:
+          warn_after: {count: 3, period: day}
+          error_after: {count: 7, period: day}
+        columns:
+          - name: rx_id
+            description: Surrogate key for the prescription
+            tests:
+              - not_null
+              - unique
+          - name: hcp_id
+            description: FK to raw_hcp.hcp_id — prescribing doctor
+          - name: product_id
+            description: FK to raw_product.product_id
+          - name: rx_date
+            description: Prescription date (VARCHAR — cast in staging)
+          - name: rx_quantity
+            description: Quantity prescribed (VARCHAR — cast in staging)
+          - name: rx_type
+            description: New (NRx), Refill, or Switch
+          - name: pharmacy_id
+            description: Dispensing pharmacy identifier
+          - name: total_rx_value
+            description: Total monetary value of prescription (VARCHAR)
+          - name: payer_type
+            description: Commercial, Medicare, Medicaid, Cash Pay, or Medicare Part D
+          - name: territory_id
+            description: FK to raw_territory.territory_id
+
+      - name: raw_sales_target
+        description: 
+          Monthly sales targets from planning system.
+          Grain = one row per rep + product + month. ~48K rows.
+        columns:
+          - name: target_id
+            description: Surrogate key for the target record
+            tests:
+              - not_null
+              - unique
+          - name: rep_id
+            description: FK to raw_sales_rep.rep_id
+          - name: product_id
+            description: FK to raw_product.product_id
+          - name: territory_id
+            description: FK to raw_territory.territory_id
+          - name: target_month
+            description: Month number 1-12 (VARCHAR — cast in staging)
+          - name: target_year
+            description: Year (VARCHAR — cast in staging)
+          - name: target_amount
+            description: Dollar target amount (VARCHAR — cast in staging)
+          - name: target_units
+            description: Unit target (VARCHAR — cast in staging)
+
+      - name: raw_sample_inventory
+        description: 
+          Drug sample inventory and distribution tracking.
+          Grain = one row per sample allocation per rep per product.
+          FDA PDMA Act requires tracking every sample unit.
+        loaded_at_field: allocation_date::timestamp
+        freshness:
+          warn_after: {count: 7, period: day}
+          error_after: {count: 14, period: day}
+        columns:
+          - name: sample_id
+            description: Surrogate key for the sample allocation
+            tests:
+              - not_null
+              - unique
+          - name: rep_id
+            description: FK to raw_sales_rep.rep_id
+          - name: product_id
+            description: FK to raw_product.product_id
+          - name: allocated_qty
+            description: Units allocated to rep (VARCHAR — cast in staging)
+          - name: distributed_qty
+            description: Units given to doctors (VARCHAR — cast in staging)
+          - name: remaining_qty
+            description: Units still in hand (VARCHAR — cast in staging)
+          - name: allocation_date
+            description: Date samples were allocated (VARCHAR)
+          - name: expiry_date
+            description: Sample lot expiry date (VARCHAR)
+          - name: lot_number
+            description: Manufacturing lot number for compliance

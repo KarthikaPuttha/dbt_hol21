@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: stg_hcp
+    description: "Cleansed Healthcare Professional data with prescribing metadata. Grain: one row per HCP (latest record wins)."
+    config:
+      tags: ["staging", "dimension", "hcp"]
+    columns:
+      - name: hcp_id
+        # ... rest stays the same

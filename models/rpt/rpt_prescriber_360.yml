@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: rpt_prescriber_360
+    description: >
+      360-degree prescriber (HCP) report combining prescriptions, call activity, and sample drops.
+      Grain: one row per HCP + product + month.
+      Key KPIs: nrx_share_pct, call_completion_rate, rx_per_call, engagement_tier.
+    columns:
+      - name: prescriber_360_sk
+        description: "Surrogate key (hcp + product + year_month)"
+        tests: [not_null, unique]
+      - name: hcp_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_hcp')
+              field: hcp_id
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_id
+      - name: total_rx_count
+        description: "TRx for the month"
+        tests: [not_null]
+      - name: new_rx_count
+        description: "NRx (new prescriptions) for the month"
+        tests: [not_null]
+      - name: engagement_tier
+        description: "HCP engagement classification based on calls and Rx"
+        tests:
+          - accepted_values:
+              values: ['High Engagement', 'Medium Engagement', 'Low Engagement', 'No Engagement']

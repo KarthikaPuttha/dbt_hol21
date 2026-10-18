@@ -1,0 +1,8 @@
+therapeutic_area,market_size_billions,yoy_growth_pct,avg_rx_per_hcp,avg_deal_size,competitive_intensity,notes
+Cardiovascular,48.5,3.2,145,12500,High,Largest pharma segment globally
+CNS/Psychiatry,35.2,5.8,120,9800,Medium,Growing due to mental health awareness
+Endocrinology,28.7,7.1,160,15200,High,Diabetes drugs driving growth
+Oncology,62.3,12.4,85,45000,Very High,Fastest growing therapeutic area
+Respiratory,22.1,2.9,130,8500,Medium,Seasonal demand patterns
+Immunology,41.6,9.3,95,28000,High,Biologics dominating new launches
+Gastroenterology,15.4,4.5,110,7200,Low,Stable mature market

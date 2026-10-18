@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: rpt_sample_compliance
+    description: >
+      PDMA compliance report for drug sample inventory management.
+      Grain: one row per rep + product + month.
+      Key KPIs: utilization_rate, waste_rate, compliance_status.
+    columns:
+      - name: compliance_sk
+        description: "Surrogate key (rep + product + year_month)"
+        tests: [not_null, unique]
+      - name: rep_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_sales_rep')
+              field: rep_id
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_id
+      - name: total_allocated
+        description: "Total samples allocated in the period"
+        tests: [not_null]
+      - name: utilization_rate
+        description: "Distributed / Allocated * 100"
+      - name: waste_rate
+        description: "Expired waste / Allocated * 100"
+      - name: compliance_status
+        description: "PDMA compliance classification"
+        tests:
+          - accepted_values:
+              values: ['Compliant', 'Warning', 'Non-Compliant']

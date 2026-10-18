@@ -1,0 +1,273 @@
+version: 2
+
+models:
+
+  # ====================================================================
+  # DIMENSION MODELS
+  # ====================================================================
+
+  - name: dim_date
+    description: >
+      Calendar and pharma fiscal date dimension.
+      Grain: one row per calendar date (2020 to 2029).
+      Includes fiscal year (Oct-Sep), relative flags (is_today, is_current_month),
+      and pre-calculated week/month/quarter boundaries.
+    columns:
+      - name: date_key
+        description: "Surrogate key — INTEGER YYYYMMDD for partition pruning"
+        tests: [not_null, unique]
+      - name: calendar_date
+        tests: [not_null, unique]
+      - name: fiscal_year
+        description: "Pharma fiscal year (Oct-Sep). FY2026 = Oct 2025 through Sep 2026."
+      - name: fiscal_quarter
+        description: "FQ1=Oct-Dec, FQ2=Jan-Mar, FQ3=Apr-Jun, FQ4=Jul-Sep"
+
+  - name: dim_region
+    description: >
+      Conformed region dimension with pre-aggregated territory count.
+      Grain: one row per region. Includes zone_sort_order for East→Central→West display.
+    columns:
+      - name: region_sk
+        description: "Surrogate key (dbt_utils.generate_surrogate_key)"
+        tests: [not_null, unique]
+      - name: region_id
+        description: Natural business key
+        tests: [not_null, unique]
+      - name: zone
+        tests:
+          - accepted_values:
+              values: ['EAST', 'CENTRAL', 'WEST']
+
+  - name: dim_territory
+    description: >
+      Conformed territory dimension with denormalized region attributes and entity counts.
+      Grain: one row per territory. Includes hcp_count and rep_count.
+    columns:
+      - name: territory_sk
+        description: "Surrogate key"
+        tests: [not_null, unique]
+      - name: territory_id
+        tests: [not_null, unique]
+      - name: region_id
+        tests:
+          - relationships:
+              to: ref('dim_region')
+              field: region_id
+
+  - name: dim_product
+    description: >
+      Conformed product dimension with lifecycle stage, price tier, and patent countdown.
+      Grain: one row per product. product_lifecycle_stage classifies by age + patent status.
+    columns:
+      - name: product_sk
+        description: "Surrogate key"
+        tests: [not_null, unique]
+      - name: product_id
+        tests: [not_null, unique]
+      - name: brand_name
+        tests: [not_null]
+      - name: product_lifecycle_stage
+        description: "Launch / Growth / Maturity / Decline / Post-Patent"
+        tests:
+          - accepted_values:
+              values: ['Launch Phase', 'Growth Phase', 'Maturity Phase', 'Decline Phase', 'Post-Patent']
+      - name: price_tier
+        tests:
+          - accepted_values:
+              values: ['Premium', 'Standard', 'Value', 'Economy']
+
+  - name: dim_hcp
+    description: >
+      Conformed HCP dimension with prescribing_potential_score (16-100), specialty_group,
+      and denormalized territory/region. Grain: one row per doctor.
+    columns:
+      - name: hcp_sk
+        description: "Surrogate key"
+        tests: [not_null, unique]
+      - name: hcp_id
+        tests: [not_null, unique]
+      - name: hcp_tier
+        tests:
+          - accepted_values:
+              values: ['A', 'B', 'C', 'D']
+      - name: specialty_group
+        description: "Aggregated specialty for analytics (6 groups)"
+        tests:
+          - accepted_values:
+              values:
+                - 'Cardiovascular Specialists'
+                - 'Metabolic Specialists'
+                - 'CNS Specialists'
+                - 'GI Specialists'
+                - 'Respiratory Specialists'
+                - 'Primary Care / General'
+
+  - name: dim_sales_rep
+    description: >
+      Conformed sales rep dimension with tenure_band, seniority_rank, manager hierarchy,
+      and denormalized territory/region. Grain: one row per rep.
+    columns:
+      - name: rep_sk
+        description: "Surrogate key"
+        tests: [not_null, unique]
+      - name: rep_id
+        tests: [not_null, unique]
+      - name: tenure_band
+        description: "Experience classification for performance analysis"
+        tests:
+          - accepted_values:
+              values:
+                - '0-6 Months (New Hire)'
+                - '6-12 Months (Ramping)'
+                - '1-2 Years (Developing)'
+                - '2-4 Years (Experienced)'
+                - '4+ Years (Veteran)'
+
+  # ====================================================================
+  # FACT MODELS
+  # ====================================================================
+
+  - name: fct_sales
+    description: >
+      Sales transaction fact. Grain: one row per sale.
+      Additive measures: quantity_sold, gross_amount, net_amount, discount_amount.
+      Non-additive: unit_price, discount_pct (use AVG).
+      Incremental by txn_date.
+    columns:
+      - name: sales_sk
+        description: "Surrogate key"
+        tests: [not_null, unique]
+      - name: txn_id
+        tests: [not_null, unique]
+      - name: date_key
+        description: "FK to dim_date.date_key"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: rep_sk
+        tests:
+          - relationships:
+              to: ref('dim_sales_rep')
+              field: rep_sk
+      - name: product_sk
+        tests:
+          - relationships:
+              to: ref('dim_product')
+              field: product_sk
+      - name: net_amount
+        description: "Revenue after discount — the primary revenue measure"
+        tests: [not_null]
+      - name: sales_channel
+        tests:
+          - accepted_values:
+              values: ['Direct Sales', 'Wholesale', 'Hospital', 'Specialty Pharmacy']
+
+  - name: fct_prescriptions
+    description: >
+      Prescription fact with NRx/TRx integer flags.
+      SUM(is_new_rx) = NRx count. SUM(total_rx_count) = TRx count.
+      Incremental by rx_date.
+    columns:
+      - name: rx_sk
+        description: "Surrogate key"
+        tests: [not_null, unique]
+      - name: rx_id
+        tests: [not_null, unique]
+      - name: date_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: hcp_sk
+        tests:
+          - relationships:
+              to: ref('dim_hcp')
+              field: hcp_sk
+      - name: rx_type
+        tests:
+          - accepted_values:
+              values: ['New', 'Refill', 'Switch']
+
+  - name: fct_call_activity
+    description: >
+      Field force call fact with integer flags for SUM/AVG aggregation.
+      completed_call_count, missed_call_count, total_call_count, calls_with_samples
+      are all integers (1/0) enabling direct SUM.
+      Incremental by call_date.
+    columns:
+      - name: call_sk
+        description: "Surrogate key"
+        tests: [not_null, unique]
+      - name: call_id
+        tests: [not_null, unique]
+      - name: date_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: call_type
+        tests:
+          - accepted_values:
+              values: ['Face-to-Face', 'Virtual', 'Phone Call', 'Lunch & Learn', 'Conference']
+
+  - name: fct_call_event_log
+    description: >
+      Append-only immutable audit trail of all call activity records.
+      Grain: one row per raw call event (no dedup — captures every source record).
+      Incremental strategy: APPEND — new events are inserted, never updated or deleted.
+      Use for audit, change tracking, and raw event analytics.
+    columns:
+      - name: event_sk
+        description: "Surrogate key (call_id + source_loaded_at)"
+        tests: [not_null, unique]
+      - name: call_id
+        description: "Natural key from source — NOT unique here (multiple records per call possible)"
+        tests: [not_null]
+      - name: call_date
+        tests: [not_null]
+      - name: call_type
+        tests:
+          - accepted_values:
+              values: ['Face-to-Face', 'Virtual', 'Phone Call', 'Lunch & Learn', 'Conference']
+      - name: source_loaded_at
+        description: "Original load timestamp from the source system"
+        tests: [not_null]
+
+  - name: fct_sales_target
+    description: >
+      Monthly sales target fact. Grain: one row per rep + product + month.
+      Join with fct_sales for quota attainment analysis.
+      Incremental strategy: DELETE+INSERT — when quotas are revised for a month,
+      the affected partition is deleted and re-inserted for consistency.
+    columns:
+      - name: target_sk
+        description: "Surrogate key"
+        tests: [not_null, unique]
+      - name: target_id
+        tests: [not_null, unique]
+      - name: target_amount
+        description: "Dollar target for the month"
+        tests: [not_null]
+
+  - name: fct_sample_inventory
+    description: >
+      Drug sample inventory fact with compliance flags.
+      utilization_band (High/Medium/Low) and expired_waste_qty
+      support FDA PDMA compliance reporting.
+      Incremental strategy: MICROBATCH — processes daily batches by allocation_date;
+      dbt auto-filters each batch window for efficient time-series loading.
+    columns:
+      - name: sample_sk
+        description: "Surrogate key"
+        tests: [not_null, unique]
+      - name: sample_id
+        tests: [not_null, unique]
+      - name: utilization_band
+        tests:
+          - accepted_values:
+              values: ['High', 'Medium', 'Low']
